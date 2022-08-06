@@ -1,10 +1,11 @@
 name: Release on GitHub & PyPI
 
 on:
-  pull_request:
-  release:
-    types:
-      - published
+  push:
+  # pull_request:
+  # release:
+  #   types:
+  #     - published
 
 jobs:
   build-wheel:
@@ -27,6 +28,12 @@ jobs:
           chown -R $(id -u):$(id -g) $PWD
           git submodule update
 
+      - name: Install clang 
+        shell: bash -l {0}
+        run: |
+          apt-get update 
+          apt-get install -y clang-11 clang-tools-11 clang-11-doc libclang-common-11-dev libclang-11-dev libclang1-11 clang-format-11 python3-clang-11 clangd-11 clang-tidy-11
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniforge-variant: Mambaforge
@@ -40,7 +47,7 @@ jobs:
         run: |
           # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
           conda config --remove channels defaults
-          mamba install doxygen graphviz eigen simde gcc cmake compilers
+          mamba install doxygen graphviz eigen simde cmake
 
       - name: Print environment [Conda]
         shell: bash -l {0}
