@@ -1,7 +1,7 @@
 name: CI - Linux/OSX/Windows - Conda
 
 on:
-  push:
+  # push:
   pull_request:
 
 jobs:
