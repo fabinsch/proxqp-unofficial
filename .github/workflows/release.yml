@@ -1,21 +1,28 @@
 name: Release on GitHub & PyPI
 
 on:
-  pull_request:
-  release:
-    types:
-      - published
+  # pull_request:
+  # release:
+  #   types:
+  #     - published
+  push:
 
 jobs:
   build-wheel:
-    runs-on: ubuntu-latest
-    name: Build ${{ matrix.python-version }}
-    container:
-      image: quay.io/pypa/manylinux_2_24_x86_64
+    runs-on: ${{ matrix.os }}
+    name: Build ${{ matrix.os }} ${{ matrix.python-version }}
     strategy:
       matrix:
+        # python-version: ["3.8"]
         python-version: ["3.8", "3.9", "3.10"]
+        os: [ubuntu-latest]
+        # os: [ubuntu-latest, macos-latest]
+
     steps:
+      - name: Set docker for linux
+        if: contains(matrix.os, 'ubuntu')
+        uses: docker://quay.io/pypa/manylinux_2_24_x86_64
+
       - uses: actions/checkout@v2
         with:
           submodules: recursive
@@ -35,12 +42,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: proxsuite
 
+
       - name: Install dependencies [Conda]
         shell: bash -l {0}
         run: |
           # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
           conda config --remove channels defaults
-          mamba install doxygen graphviz eigen simde gcc cmake compilers
+          mamba install doxygen graphviz eigen simde cmake
+          pip3 install auditwheel
+
+      - name: Use clang for macos
+        if: contains(matrix.os, 'macos')
+        shell: bash -l {0}
+        run: |
+          # Need to replace compiler by hand
+          sed -i.bu 's/gcc/clang/' pyproject.toml
 
       - name: Print environment [Conda]
         shell: bash -l {0}
@@ -48,11 +64,29 @@ jobs:
           conda info
           mamba list
           env
+      # - name: Start SSH session
+      #   uses: luchihoratiu/debug-via-ssh@main
+      #   with:
+      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      #     SSH_PASS: ${{ secrets.SSH_PASS }}
 
       - name: Build wheel
         shell: bash -l {0}
         run: |
           pip wheel . -w dist
+          ls -la dist
+
+      - name: Inspect wheel with auditwheel
+        if: contains(matrix.os, 'ubuntu')
+        shell: bash -l {0}
+        run: |
+          auditwheel show dist/proxsuite*.whl
+
+      - name: Repair wheel with auditwheel
+        if: contains(matrix.os, 'ubuntu')
+        shell: bash -l {0}
+        run: |
+          auditwheel repair dist/proxsuite*.whl
       
       - name: Archive artifacts
         uses: actions/upload-artifact@v3
@@ -70,18 +104,18 @@ jobs:
           python-version: "3.10"
       - uses: actions/download-artifact@v3
 
-    - name: Publish package to TestPyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        verbose: true
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
+      - name: Publish package to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
-    - name: Publish package to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      if: |
-        github.repository == 'simple-robotics/proxqp' &&
-        (github.event_name == 'release' && github.event.action == 'published')
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        if: |
+          github.repository == 'simple-robotics/proxqp' &&
+          (github.event_name == 'release' && github.event.action == 'published')
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_TOKEN }}
