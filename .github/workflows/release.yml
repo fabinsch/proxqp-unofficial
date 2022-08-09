@@ -34,6 +34,12 @@ jobs:
           chown -R $(id -u):$(id -g) $PWD
           git submodule update
 
+      # - name: Start SSH session
+      #   uses: luchihoratiu/debug-via-ssh@main
+      #   with:
+      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      #     SSH_PASS: ${{ secrets.SSH_PASS }}
+
       - uses: conda-incubator/setup-miniconda@v2
         with:
           miniforge-variant: Mambaforge
@@ -42,21 +48,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: proxsuite
 
-
       - name: Install dependencies [Conda]
         shell: bash -l {0}
         run: |
           # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
           conda config --remove channels defaults
-          mamba install doxygen graphviz eigen simde cmake
+          mamba install doxygen graphviz eigen simde cmake compilers
           pip3 install auditwheel
 
-      - name: Use clang for macos
-        if: contains(matrix.os, 'macos')
-        shell: bash -l {0}
-        run: |
-          # Need to replace compiler by hand
-          sed -i.bu 's/gcc/clang/' pyproject.toml
+      # - name: Use clang for macos
+      #   if: contains(matrix.os, 'macos')
+      #   shell: bash -l {0}
+      #   run: |
+      #     # Need to replace compiler by hand
+      #     sed -i.bu 's/g++/clang++/' pyproject.toml
 
       - name: Print environment [Conda]
         shell: bash -l {0}
@@ -64,11 +69,7 @@ jobs:
           conda info
           mamba list
           env
-      # - name: Start SSH session
-      #   uses: luchihoratiu/debug-via-ssh@main
-      #   with:
-      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-      #     SSH_PASS: ${{ secrets.SSH_PASS }}
+
 
       - name: Build wheel
         shell: bash -l {0}
