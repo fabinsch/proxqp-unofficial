@@ -13,10 +13,10 @@ jobs:
     name: Build ${{ matrix.os }} ${{ matrix.python-version }}
     strategy:
       matrix:
-        # python-version: ["3.8"]
-        python-version: ["3.8", "3.9", "3.10"]
-        # os: [ubuntu-latest]
-        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.9"]
+        # python-version: ["3.8", "3.9", "3.10"]
+        os: [ubuntu-latest]
+        # os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Set docker for linux
@@ -34,7 +34,19 @@ jobs:
           chown -R $(id -u):$(id -g) $PWD
           git submodule update
 
+      - uses: actions/setup-python@v2
+        if: contains(matrix.os, 'ubuntu')
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          SSH_PASS: ${{ secrets.SSH_PASS }}
+
       - uses: conda-incubator/setup-miniconda@v2
+        if: contains(matrix.os, 'macos')
         with:
           miniforge-variant: Mambaforge
           miniforge-version: latest
@@ -42,51 +54,45 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: proxsuite
 
-
       - name: Install dependencies [Conda]
+        if: contains(matrix.os, 'macos')
         shell: bash -l {0}
         run: |
           # Workaround for https://github.com/conda-incubator/setup-miniconda/issues/186
           conda config --remove channels defaults
-          mamba install doxygen graphviz eigen simde cmake
+          mamba install doxygen graphviz eigen simde cmake compilers
           pip3 install auditwheel
 
-      - name: Use clang for macos
-        if: contains(matrix.os, 'macos')
+      - name: Install dependencies [apt]
+        if: contains(matrix.os, 'ubuntu')
         shell: bash -l {0}
         run: |
-          # Need to replace compiler by hand
-          sed -i.bu 's/gcc/clang/' pyproject.toml
+          sudo apt-get update
+          # sudo apt-get -y install libsimde-dev libeigen3-dev
+          sudo apt-get -y install libeigen3-dev
+
+      # - name: Use clang for macos
+      #   if: contains(matrix.os, 'macos')
+      #   shell: bash -l {0}
+      #   run: |
+      #     # Need to replace compiler by hand
+      #     sed -i.bu 's/gcc/clang/' pyproject.toml
 
       - name: Print environment [Conda]
+        if: contains(matrix.os, 'macos')
         shell: bash -l {0}
         run: |
           conda info
           mamba list
           env
-      # - name: Start SSH session
-      #   uses: luchihoratiu/debug-via-ssh@main
-      #   with:
-      #     NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-      #     SSH_PASS: ${{ secrets.SSH_PASS }}
 
       - name: Build wheel
         shell: bash -l {0}
         run: |
-          pip wheel . -w dist
-          ls -la dist
+          python${{ matrix.python-version }} -m pip install -U pip
+          python${{ matrix.python-version }} -m pip wheel -w dist .
 
-      - name: Inspect wheel with auditwheel
-        if: contains(matrix.os, 'ubuntu')
-        shell: bash -l {0}
-        run: |
-          auditwheel show dist/proxsuite*.whl
 
-      # - name: Repair wheel with auditwheel
-      #   if: contains(matrix.os, 'ubuntu')
-      #   shell: bash -l {0}
-      #   run: |
-      #     auditwheel repair dist/proxsuite*.whl
       
       - name: Archive artifacts
         uses: actions/upload-artifact@v3
