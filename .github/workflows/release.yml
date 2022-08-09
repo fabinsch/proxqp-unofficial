@@ -15,8 +15,8 @@ jobs:
       matrix:
         # python-version: ["3.8"]
         python-version: ["3.8", "3.9", "3.10"]
-        os: [ubuntu-latest]
-        # os: [ubuntu-latest, macos-latest]
+        # os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - name: Set docker for linux
@@ -82,11 +82,11 @@ jobs:
         run: |
           auditwheel show dist/proxsuite*.whl
 
-      - name: Repair wheel with auditwheel
-        if: contains(matrix.os, 'ubuntu')
-        shell: bash -l {0}
-        run: |
-          auditwheel repair dist/proxsuite*.whl
+      # - name: Repair wheel with auditwheel
+      #   if: contains(matrix.os, 'ubuntu')
+      #   shell: bash -l {0}
+      #   run: |
+      #     auditwheel repair dist/proxsuite*.whl
       
       - name: Archive artifacts
         uses: actions/upload-artifact@v3
