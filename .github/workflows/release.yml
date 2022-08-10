@@ -13,7 +13,7 @@ jobs:
     name: Build ${{ matrix.os }} ${{ matrix.python-version }}
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.8"]
         # python-version: ["3.8", "3.9", "3.10"]
         os: [ubuntu-latest]
         # os: [ubuntu-latest, macos-latest]
@@ -34,16 +34,10 @@ jobs:
           chown -R $(id -u):$(id -g) $PWD
           git submodule update
 
-      - uses: actions/setup-python@v2
-        if: contains(matrix.os, 'ubuntu')
-        with:
-          python-version: ${{ matrix.python-version }}
-      
-      - name: Start SSH session
-        uses: luchihoratiu/debug-via-ssh@main
-        with:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-          SSH_PASS: ${{ secrets.SSH_PASS }}
+      # - uses: actions/setup-python@v2
+      #   if: contains(matrix.os, 'ubuntu')
+      #   with:
+      #     python-version: ${{ matrix.python-version }}
 
       - uses: conda-incubator/setup-miniconda@v2
         if: contains(matrix.os, 'macos')
@@ -90,10 +84,27 @@ jobs:
         shell: bash -l {0}
         run: |
           python${{ matrix.python-version }} -m pip install -U pip
+          pip install auditwheel auditwheel-symbols
           python${{ matrix.python-version }} -m pip wheel -w dist .
 
+      - name: Inspect wheel with auditwheel
+        if: contains(matrix.os, 'ubuntu')
+        shell: bash -l {0}
+        run: |
+          auditwheel show dist/proxsuite*.whl
 
-      
+      # - name: Repair wheel with auditwheel
+      #   if: contains(matrix.os, 'ubuntu')
+      #   shell: bash -l {0}
+      #   run: |
+      #     auditwheel repair dist/proxsuite*.whl
+
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          SSH_PASS: ${{ secrets.SSH_PASS }}
+
       - name: Archive artifacts
         uses: actions/upload-artifact@v3
         with:
