@@ -1,5 +1,11 @@
 import Pkg
-Pkg.add("PyCall")
+DEFINE_DIFFERENT_PYTHON_PATH = nothing
+if !isnothing(DEFINE_DIFFERENT_PYTHON_PATH)
+    ENV["PYTHON"] = "DEFINE_DIFFERENT_PYTHON_PATH"
+    Pkg.build("PyCall")
+else
+    Pkg.add("PyCall")
+end
 
 using PyCall
 using Printf

@@ -34,6 +34,15 @@ jobs:
         python-version: "3.10"
         activate-environment: proxsuite
 
+    - name: Set new python path for julia pycall [Windows]
+      if: contains(matrix.os, 'windows')
+      shell: bash -l {0}
+      run: |
+        cd $GITHUB_WORKSPACE/examples/julia
+        powershell -Command "(Get-Content overview-simple.jl) | Foreach-Object {$_ -replace 'nothing', $(which python3)} | Set-Content overview-simple.jl"
+        cat overview-simple.jl
+        julia overview-simple.jl
+
     - name: Install dependencies [Conda]
       shell: bash -l {0}
       run: |
